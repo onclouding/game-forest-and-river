@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>林水成-森林與水源的生態模擬</title>
+    <style>
+        :root {
+            --bg-color: #f0e6d2;
+            --land-color: #dcb178;
+            --water-color: #4fa4f4;
+            --tree-color: #2d6e32;
+            --ui-bg: #fff;
+            --btn-hover: #e0e0e0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            user-select: none;
+        }
+
+        h1 { margin-bottom: 10px; color: #2c3e50; }
+        
+        .stats-bar {
+            display: flex;
+            gap: 20px;
+            background: var(--ui-bg);
+            padding: 10px 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .stat-item span { color: #e67e22; }
+        .stat-item.water span { color: #3498db; }
+        .stat-item.score span { color: #27ae60; }
+
+        .game-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        /* The Grid */
+        #game-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 50px);
+            grid-template-rows: repeat(10, 50px);
+            gap: 2px;
+            background-color: #8b6c42;
+            padding: 5px;
+            border-radius: 8px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+
+        .cell {
+            width: 50px;
+            height: 50px;
+            background-color: var(--land-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .cell:hover { filter: brightness(1.1); }
+        .cell.water { background-color: var(--water-color); animation: ripple 2s infinite; }
+        .cell.sapling { font-size: 20px; }
+
+        /* Tools Panel */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: var(--ui-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            min-width: 200px;
+        }
+
+        .tool-btn {
+            padding: 12px;
+            border: 2px solid transparent;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tool-btn:hover { background-color: var(--btn-hover); }
+        .tool-btn.active {
+            border-color: #27ae60;
+            background-color: #e8f8f5;
+            font-weight: bold;
+        }
+
+        .cost { font-size: 0.8em; color: #7f8c8d; }
+
+        .log-panel {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 600px;
+            height: 100px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 8px;
+            padding: 10px;
+            overflow-y: auto;
+            font-size: 0.9em;
+            font-family: monospace;
+        }
+
+        @keyframes ripple {
+            0% { background-color: #4fa4f4; }
+            50% { background-color: #64b5f6; }
+            100% { background-color: #4fa4f4; }
+        }
+        
+        @media (max-width: 600px) {
+            #game-grid {
+                grid-template-columns: repeat(10, 32px);
+                grid-template-rows: repeat(10, 32px);
+            }
+            .cell { width: 32px; height: 32px; font-size: 18px; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🌲 林水成 - 森林與水源的生態模擬 🌊</h1>
+
+    <div class="stats-bar">
+        <div class="stat-item water">💧 水資源: <span id="res-water">50</span></div>
+        <div class="stat-item">🪵 木材: <span id="res-wood">20</span></div>
+        <div class="stat-item score">🏆 生態分: <span id="res-score">0</span></div>
+    </div>
+
+    <div class="game-container">
+        <div id="game-grid"></div>
+
+        <div class="controls">
+            <h3>工具箱</h3>
+            <button class="tool-btn active" onclick="selectTool('plant')" id="btn-plant">
+                <span>🌱 種植樹苗</span>
+                <span class="cost">-10 水</span>
+            </button>
+            <button class="tool-btn" onclick="selectTool('dig')" id="btn-dig">
+                <span>🌊 開鑿河道</span>
+                <span class="cost">-15 木</span>
+            </button>
+            <button class="tool-btn" onclick="selectTool('chop')" id="btn-chop">
+                <span>🪓 砍伐樹木</span>
+                <span class="cost">+20 木</span>
+            </button>
+            <button class="tool-btn" onclick="selectTool('fill')" id="btn-fill">
+                <span>🧱 填平河流</span>
+                <span class="cost">+5 土</span>
+            </button>
+            <hr>
+            <small>提示：河流會自動產生水。樹木在河邊會生長更快並繁殖。</small>
+        </div>
+    </div>
+
+    <div class="log-panel" id="game-log">
+        <div>歡迎來到 林水成-森林與水源的生態模擬！請選擇工具開始建設。</div>
+    </div>
+
+    <script>
+        // Game Configuration
+        const GRID_SIZE = 10;
+        const TICK_RATE = 1000; // 1 second
+
+        // Game State
+        let water = 50;
+        let wood = 20;
+        let score = 0;
+        let selectedTool = 'plant';
+        let grid = []; // Stores cell data: { type: 'land'|'water'|'sapling'|'tree', age: 0 }
+
+        // DOM Elements
+        const gridEl = document.getElementById('game-grid');
+        const waterEl = document.getElementById('res-water');
+        const woodEl = document.getElementById('res-wood');
+        const scoreEl = document.getElementById('res-score');
+        const logEl = document.getElementById('game-log');
+        const toolBtns = document.querySelectorAll('.tool-btn');
+
+        // Initialization
+        function initGame() {
+            renderGrid();
+            updateUI();
+            setInterval(gameTick, TICK_RATE);
+            log("遊戲開始！試著在水源附近種樹。");
+        }
+
+        function createCellData() {
+            return { type: 'land', age: 0 };
+        }
+
+        // Setup Grid
+        function renderGrid() {
+            gridEl.innerHTML = '';
+            for (let y = 0; y < GRID_SIZE; y++) {
+                let row = [];
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    if (!grid[y]) grid[y] = [];
+                    if (!grid[y][x]) grid[y][x] = createCellData();
+
+                    const cellDiv = document.createElement('div');
+                    cellDiv.className = 'cell';
+                    cellDiv.dataset.x = x;
+                    cellDiv.dataset.y = y;
+                    cellDiv.onclick = () => handleCellClick(x, y);
+                    
+                    updateCellVisual(cellDiv, grid[y][x]);
+                    
+                    gridEl.appendChild(cellDiv);
+                    row.push(cellDiv); // Store DOM reference if needed, but we usually rebuild or update by ID
+                }
+            }
+        }
+
+        // Helper to get visual content
+        function updateCellVisual(el, data) {
+            el.className = 'cell';
+            el.innerHTML = '';
+
+            if (data.type === 'water') {
+                el.classList.add('water');
+                el.innerHTML = '🌊';
+            } else if (data.type === 'sapling') {
+                el.classList.add('sapling');
+                el.innerHTML = '🌱';
+            } else if (data.type === 'tree') {
+                el.classList.add('tree');
+                el.innerHTML = '🌲';
+            } else {
+                // Land
+                el.innerHTML = ''; // Empty land
+            }
+        }
+
+        // User Interaction
+        function selectTool(tool) {
+            selectedTool = tool;
+            toolBtns.forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${tool}`).classList.add('active');
+        }
+
+        function handleCellClick(x, y) {
+            const cell = grid[y][x];
+
+            if (selectedTool === 'plant') {
+                if (cell.type === 'land') {
+                    if (water >= 10) {
+                        water -= 10;
+                        cell.type = 'sapling';
+                        cell.age = 0;
+                        log("種下了一棵樹苗。");
+                    } else {
+                        log("水資源不足！無法種植。");
+                    }
+                }
+            } else if (selectedTool === 'dig') {
+                if (cell.type !== 'water') {
+                    if (wood >= 15) {
+                        wood -= 15;
+                        cell.type = 'water';
+                        log("開鑿了一條河流。");
+                    } else {
+                        log("木材不足！需要工具來挖掘。");
+                    }
+                }
+            } else if (selectedTool === 'chop') {
+                if (cell.type === 'tree') {
+                    wood += 20;
+                    cell.type = 'land';
+                    cell.age = 0;
+                    log("砍伐樹木，獲得 20 木材。");
+                } else if (cell.type === 'sapling') {
+                    wood += 2;
+                    cell.type = 'land';
+                    log("鏟除了樹苗，獲得少量木枝。");
+                }
+            } else if (selectedTool === 'fill') {
+                if (cell.type === 'water') {
+                    cell.type = 'land';
+                    log("填平了河流。");
+                }
+            }
+
+            updateUI();
+            refreshGridVisuals();
+        }
+
+        // Game Loop
+        function gameTick() {
+            let waterGain = 0;
+            let currentScore = 0;
+
+            // 1. Calculate Resources & Growth
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    const cell = grid[y][x];
+                    const neighbors = getNeighbors(x, y);
+                    const nearWater = neighbors.some(n => n.type === 'water');
+                    
+                    if (cell.type === 'water') {
+                        waterGain += 2; // River generates water
+                    } 
+                    else if (cell.type === 'sapling') {
+                        // Growth Logic
+                        let growthChance = nearWater ? 0.3 : 0.05; // Grows much faster near water
+                        if (Math.random() < growthChance) {
+                            cell.type = 'tree';
+                            log("一棵樹苗長成了大樹！");
+                        }
+                    } 
+                    else if (cell.type === 'tree') {
+                        currentScore += 10;
+                        
+                        // Propagation (Spreading seeds)
+                        if (nearWater && Math.random() < 0.1) {
+                            trySpreadSeed(x, y);
+                        }
+                    }
+                }
+            }
+
+            // Apply resources
+            water += waterGain;
+            score = currentScore; // Score is based on current ecosystem health
+
+            // Cap resources somewhat to prevent infinity layout issues
+            if (water > 999) water = 999;
+            if (wood > 999) wood = 999;
+
+            updateUI();
+            refreshGridVisuals();
+        }
+
+        function trySpreadSeed(x, y) {
+            // Pick a random neighbor
+            const dx = Math.floor(Math.random() * 3) - 1;
+            const dy = Math.floor(Math.random() * 3) - 1;
+            const nx = x + dx;
+            const ny = y + dy;
+
+            if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                if (grid[ny][nx].type === 'land') {
+                    grid[ny][nx].type = 'sapling';
+                    // log("森林自動繁衍了一棵新樹苗！"); // Too spammy
+                }
+            }
+        }
+
+        function getNeighbors(x, y) {
+            let neighbors = [];
+            const dirs = [[0,1], [0,-1], [1,0], [-1,0]];
+            dirs.forEach(([dx, dy]) => {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                    neighbors.push(grid[ny][nx]);
+                }
+            });
+            return neighbors;
+        }
+
+        function refreshGridVisuals() {
+            const cells = document.querySelectorAll('.cell');
+            let index = 0;
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    updateCellVisual(cells[index], grid[y][x]);
+                    index++;
+                }
+            }
+        }
+
+        function updateUI() {
+            waterEl.innerText = Math.floor(water);
+            woodEl.innerText = Math.floor(wood);
+            scoreEl.innerText = score;
+        }
+
+        function log(msg) {
+            const div = document.createElement('div');
+            div.innerText = `> ${msg}`;
+            logEl.prepend(div);
+            if (logEl.children.length > 5) logEl.lastChild.remove();
+        }
+
+        // Start
+        initGame();
+
+    </script>
+</body>
+</html>
