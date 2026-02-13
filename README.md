@@ -4,7 +4,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Language](https://img.shields.io/badge/language-HTML%2FJS-orange)
 ![Status](https://img.shields.io/badge/status-Playable-blue)
-
+<img width="1091" height="900" alt="main" src="https://github.com/user-attachments/assets/21d2ac49-a22a-4b5a-afd5-79a1ea28fc2c" />
 一個基於瀏覽器的單機網頁版生態模擬遊戲。玩家扮演造物主，在有限的網格中平衡水資源與木材，建立一個能夠自我繁衍的森林生態系。
 
 ## ✨ 遊戲特色
