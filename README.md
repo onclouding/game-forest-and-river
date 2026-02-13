@@ -27,6 +27,6 @@
 
 ### 方法二：Git Clone
 ```bash
-git clone [https://github.com/onclouding/game-forest-and-river.git](https://github.com/onclouding/game-forest-and-river.git)
-cd 你的專案名稱
+git clone https://github.com/onclouding/game-forest-and-river.git
+cd game-forest-and-river
 # 在瀏覽器中打開 game.html
